@@ -1,0 +1,70 @@
+name: Deploy to App Runner - Image based # Name of the workflow
+on:
+  push:
+    branches: [ main ] # Trigger workflow on git push to main branch
+  workflow_dispatch: # Allow manual invocation of the workflow
+jobs:  
+  deploy:
+    runs-on: self-hosted
+    steps: 
+     - name: Check out code 
+       uses: actions/checkout@v2 
+
+     - name: Configure AWS credentials
+       uses: aws-actions/configure-aws-credentials@v1
+       with:
+         aws-region: ap-south-1
+     
+     - name: Login to Amazon ECR
+       id: login-ecr
+       uses: aws-actions/amazon-ecr-login@v1
+       
+    
+     - name: Run Create ECR script file
+       run: |
+          chmod +x Dr_Build/create-ecr.sh
+          ./Dr_Build/create-ecr.sh
+       shell: bash
+     - name: Run Create RDS script file
+       run: |
+          chmod +x Dr_Build/create-rds.sh
+          ./Dr_Build/create-rds.sh
+       shell: bash
+
+     - name: Create Database 
+       run: |
+          chmod +x Dr_Build/psql.sh
+          ./Dr_Build/psql.sh
+      
+     - name: Build, tag, and push image to Amazon ECR 
+       id: build-image 
+       env: 
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }} 
+        ECR_REPOSITORY: real-estate 
+        IMAGE_TAG: Python-image 
+       run: | 
+         docker build -f ./Dockerfile -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG . 
+         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG 
+         echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"    
+          
+     - name: Render Amazon ECS task definition for container
+       id: render-web-container
+       uses: aws-actions/amazon-ecs-render-task-definition@v1
+       with:
+          task-definition: Dr_Build/task-definition.json
+          container-name: python-project
+          image: ${{steps.build-image.outputs.image}}
+          environment-variables: |
+            DATABASE_NAME=${{secrets.DATABASE_NAME}}
+            DATABASE_PASSWORD=${{secrets.DATABASE_PASSWORD}}
+            DATABASE_USER=${{secrets.DATABASE_USER}}
+            DJANGO_SUPERUSER_USERNAME=${{secrets.DJANGO_SUPERUSER_USERNAME}}
+            DJANGO_SUPERUSER_EMAIL=${{secrets.DJANGO_SUPERUSER_EMAIL}}
+            DJANGO_SUPERUSER_PASSWORD=${{secrets.DJANGO_SUPERUSER_PASSWORD}}
+
+     - name: Deploy to Amazon ECS service
+       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+       with:
+          task-definition: ${{ steps.render-web-container.outputs.task-definition }}
+          service: hu19-pyhton-service
+          cluster: HU19-cluster

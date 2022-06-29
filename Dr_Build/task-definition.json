@@ -1,0 +1,40 @@
+{
+  "family": "Hu19-python-project",
+  "executionRoleArn": "arn:aws:iam::035825521573:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+      {
+          "name": "python-project",
+          "image": "${{ steps.build-image.outputs.image }}",
+          "cpu": 512,
+          "portMappings": [
+            {
+              "hostPort": 8000,
+              "protocol": "tcp",
+              "containerPort": 8000
+            }
+          ],
+          "secrets": [
+             {
+            "name": "DATABASE_HOST",
+             "valueFrom": "arn:aws:ssm:ap-south-1:035825521573:parameter/DATABASE_HOST"
+              }
+          ],
+          "memory": 1024,
+          "essential": true,
+          "logConfiguration": {
+            "logDriver": "awslogs",
+            "options": {
+              "awslogs-group": "/ecs/Hu19-python-project",
+              "awslogs-region": "ap-south-1",
+              "awslogs-stream-prefix": "ecs"
+            }
+          }
+      }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "networkMode": "awsvpc",
+  "cpu": "1024",
+  "memory": "2048"
+}

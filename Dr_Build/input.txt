@@ -1,0 +1,14 @@
+----CREATE REPOSITORY IF NOT EXISTS------------ 
+
+REPOSITORY_NAME="real-estate"
+
+
+----RDS CREATE IF NOT EXISTS-----
+DB_IDEN="hu19-project"
+
+------ONLY MENTION IF CREATING NEW RDS------
+DB_CLASS="db.t3.micro"
+DB_ENGINE="mysql"
+DB_MAS_USER="admin"
+DB_MAS_PASS="admin123"
+DB_STORAGE=20
